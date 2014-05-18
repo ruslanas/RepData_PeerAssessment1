@@ -2,19 +2,87 @@
 
 
 ## Loading and preprocessing the data
+```{r loading,cache=TRUE}
+unzip('activity.zip')
+raw <- read.csv('activity.csv',
+                colClasses=c('numeric', 'character', 'numeric'),
+                na.strings='NA')
 
+# remove rows with NA values                
+dat <- raw[!is.na(raw$steps),]
+dat <- transform(dat, date = as.Date(date, format='%Y-%m-%d'))
 
+```
 
-## What is mean total number of steps taken per day?
+## Mean total number of steps taken per day
 
+```{r}
+# total number of steps each day
+stepsDate <- aggregate(steps~date, data=dat, sum)
+hist(stepsDate$steps, main='Historgram of total steps each day')
 
+# compute mean and median
+stepsMean <- mean(stepsDate$steps)
+stepsMedian <- median(stepsDate$steps)
+```
 
-## What is the average daily activity pattern?
+Mean of total steps per day: **`r round(stepsMean, 2)`**.
 
+Median of total steps per day: **`r round(stepsMedian, 2)`**.
 
+## The average daily activity pattern
+
+```{r,fig.width=11,fig.height=5}
+stepsInterval <- aggregate(steps ~ interval, dat, mean)
+plot(stepsInterval$interval, stepsInterval$steps, type='l',
+     xlab='Interval', ylab='Average number of steps')
+
+# find interval with maximum steps
+maxRow <- which.max(stepsInterval[,'steps'])
+maxInt <- stepsInterval[maxRow,'interval']
+abline(v=maxInt,col=4,lty=3)
+text(maxInt,0,maxInt,pos=4)
+```
+
+Maximum average **`r round(max(stepsInterval$steps), 2)`** steps in
+interval **`r maxInt`**.
 
 ## Imputing missing values
 
+```{r}
+missing <- sum(is.na(raw$steps))
+```
 
+There are **`r missing`** intervals with missing values for number of steps.
+Missing values will be replaced with an average number of available values.
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+# replace missing values with an average value of available numbers  
+avgSteps <- mean(dat$steps)
+raw[is.na(raw)] <- avgSteps
+
+fixedData <- aggregate(steps ~ date, data = raw, sum)
+hist(fixedData$steps)
+
+meanSteps <- mean(fixedData$steps)
+
+medianSteps <- median(fixedData$steps)
+
+```
+
+Average number of steps after missing values fixed: **`r meanSteps`**.
+
+Median number of steps after missing values fixed: **`r medianSteps`**.
+
+## Differences in activity patterns between weekdays and weekends
+
+```{r}
+dat <- transform(raw, weekday=weekdays(as.Date(date, '%Y-%m-%d')))
+dat$day <- as.factor(ifelse(dat$weekday == 'Saturday'
+                                | dat$weekday == 'Sunday', 'weekend', 'weekday'))
+
+stepsWd <- aggregate(steps ~ interval + day, dat, mean)
+
+library(lattice)
+xyplot(steps ~ interval | day, stepsWd, type='l', layout=c(1,2))
+```
